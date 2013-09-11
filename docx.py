@@ -74,9 +74,14 @@ def opendocx(file):
     return document
 
 
-def newdocument():
+def newdocument(pgSize = (11901, 16817), pgMargin = (1134, 1134, 1134, 1134)):
     document = makeelement('document')
-    document.append(makeelement('body'))
+    body = makeelement('body')
+    pagePr = makeelement('sectPr')
+    pagePr.append(makeelement('pgSz', attributes = {'w': str(pgSize[0]), 'h': str(pgSize[1])}))
+    pagePr.append(makeelement('pgMar', attributes = {'top': str(pgMargin[0]), 'right': str(pgMargin[1]), 'bottom': str(pgMargin[2]), 'left': str(pgMargin[3])}))
+    body.append(pagePr)
+    document.append(body)
     return document
 
 
@@ -421,7 +426,7 @@ def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0,
 
 def picture(
         relationshiplist, picname, picdescription, pixelwidth=None,
-        pixelheight=None, nochangeaspect=True, nochangearrowheads=True):
+        pixelheight=None, nochangeaspect=True, nochangearrowheads=True, document=None):
     """
     Take a relationshiplist, picture file name, and return a paragraph
     containing the image and an updated relationshiplist.
@@ -435,16 +440,31 @@ def picture(
         os.mkdir(media_dir)
     shutil.copyfile(picname, join(media_dir, picname))
 
+    # If not, get info from the picture itself
+    imgwidth, imgheight = Image.open(picname).size[0:2]
+
     # Check if the user has specified a size
     if not pixelwidth or not pixelheight:
-        # If not, get info from the picture itself
-        pixelwidth, pixelheight = Image.open(picname).size[0:2]
-
+        pixelwidth, pixelheight = imgwidth, imgheight
+    
     # OpenXML measures on-screen objects in English Metric Units
     # 1cm = 36000 EMUs
     emuperpixel = 12700
-    width = str(pixelwidth * emuperpixel)
-    height = str(pixelheight * emuperpixel)
+    
+    emuwidth = pixelwidth * emuperpixel
+    emuheight = pixelheight * emuperpixel
+    
+    if document is not None:
+        # maxwidth in twentieths of a point
+        maxwidth, maxheight = pagecontentsize(document)
+        emumaxwidth = maxwidth * emuperpixel / 20
+    
+        if emuwidth > emumaxwidth:
+            emuwidth = emumaxwidth
+            emuheight = pixelheight * emuwidth / pixelwidth
+    
+    width = str(emuwidth)
+    height = str(emuheight)
 
     # Set relationship ID to the first available
     picid = '2'
@@ -969,6 +989,22 @@ def wordrelationships(relationshiplist):
         count += 1
     return relationships
 
+def pagecontentsize(document):
+    docPageSz = document.xpath('/w:document/w:body/w:sectPr/w:pgSz', namespaces=nsprefixes)[0]
+    docPageMar= document.xpath('/w:document/w:body/w:sectPr/w:pgMar', namespaces=nsprefixes)[0]
+    
+    # WORKAROUND to receive namespaced attributes
+    pwidth = int(docPageSz.get('{' + docPageSz.nsmap[docPageSz.prefix] + '}w'))
+    pheight = int(docPageSz.get('{' + docPageSz.nsmap[docPageSz.prefix] + '}h'))
+    
+    mtop = int(docPageMar.get('{' + docPageMar.nsmap[docPageMar.prefix] + '}top'))
+    mright = int(docPageMar.get('{' + docPageMar.nsmap[docPageMar.prefix] + '}right'))
+    mbottom = int(docPageMar.get('{' + docPageMar.nsmap[docPageMar.prefix] + '}bottom'))
+    mleft = int(docPageMar.get('{' + docPageMar.nsmap[docPageMar.prefix] + '}left'))
+    
+    # print pwidth, pheight
+    return pwidth-mleft-mright, pheight-mtop-mbottom
+    
 
 def savedocx(document, coreprops, appprops, contenttypes, websettings,
              wordrelationships, output):
