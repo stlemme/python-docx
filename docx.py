@@ -71,9 +71,16 @@ def opendocx(file):
     mydoc = zipfile.ZipFile(file)
     xmlcontent = mydoc.read('word/document.xml')
     document = etree.fromstring(xmlcontent)
+    relcontent = mydoc.read('word/_rels/document.xml.rels')
+    relships = etree.fromstring(relcontent)
+    return document, relships
+
+def openunzipeddocx(file):
+    '''Open a docx file, return a document XML tree'''
+    document = etree.parse(file + '/word/document.xml')
     return document
 
-
+	
 def newdocument(pgSize = (11901, 16817), pgMargin = (1134, 1134, 1134, 1134)):
     document = makeelement('document')
     body = makeelement('body')
@@ -520,8 +527,7 @@ def picture(
     # The following sequence is just: make element, then add its children
     graphicdata = makeelement(
         'graphicData', nsprefix='a',
-        attributes={'uri': ('http://schemas.openxmlformats.org/drawingml/200'
-                            '6/picture')})
+        attributes={'uri': ('http://schemas.openxmlformats.org/drawingml/2006/picture')})
     graphicdata.append(pic)
     graphic = makeelement('graphic', nsprefix='a')
     graphic.append(graphicdata)
@@ -553,6 +559,135 @@ def picture(
     paragraph = makeelement('p')
     paragraph.append(run)
     return relationshiplist, paragraph
+
+def picture2(
+        picrelid, picname, imagepath, picdescription, pixelwidth=None,
+        pixelheight=None, nochangeaspect=True, nochangearrowheads=True, document=None):
+    """
+    Take a relationshiplist, picture file name, and return a paragraph
+    containing the image and an updated relationshiplist.
+    """
+    # http://openxmldeveloper.org/articles/462.aspx
+    # Create an image. Size may be specified, otherwise it will based on the
+    # pixel size of image. Return a paragraph containing the picture'''
+    # Copy the file into the media dir
+    # media_dir = join(template_dir, 'word', 'media')
+    # if not os.path.isdir(media_dir):
+        # os.mkdir(media_dir)
+    # shutil.copyfile(picname, join(media_dir, picname))
+
+    # If not, get info from the picture itself
+    imgwidth, imgheight = Image.open(join(imagepath, picname)).size[0:2]
+
+    # Check if the user has specified a size
+    if not pixelwidth or not pixelheight:
+        pixelwidth, pixelheight = imgwidth, imgheight
+    
+    # OpenXML measures on-screen objects in English Metric Units
+    # 1cm = 36000 EMUs
+    emuperpixel = 12700
+    
+    emuwidth = pixelwidth * emuperpixel
+    emuheight = pixelheight * emuperpixel
+    
+    if document is not None:
+        # maxwidth in twentieths of a point
+        maxwidth, maxheight = pagecontentsize(document)
+        emumaxwidth = maxwidth * emuperpixel / 20
+    
+        if emuwidth > emumaxwidth:
+            emuwidth = emumaxwidth
+            emuheight = pixelheight * emuwidth / pixelwidth
+    
+    width = str(emuwidth)
+    height = str(emuheight)
+
+    # Set relationship ID to the first available
+    picid = '2'
+    # picrelid = 'rId'+str(len(relationshiplist)+1)
+    # relationshiplist.append([
+        # ('http://schemas.openxmlformats.org/officeDocument/2006/relationship'
+         # 's/image'), 'media/'+picname])
+
+    # There are 3 main elements inside a picture
+    # 1. The Blipfill - specifies how the image fills the picture area
+    #    (stretch, tile, etc.)
+    blipfill = makeelement('blipFill', nsprefix='pic')
+    blipfill.append(makeelement('blip', nsprefix='a', attrnsprefix='r',
+                    attributes={'embed': picrelid}))
+    stretch = makeelement('stretch', nsprefix='a')
+    stretch.append(makeelement('fillRect', nsprefix='a'))
+    blipfill.append(makeelement('srcRect', nsprefix='a'))
+    blipfill.append(stretch)
+
+    # 2. The non visual picture properties
+    nvpicpr = makeelement('nvPicPr', nsprefix='pic')
+    cnvpr = makeelement(
+        'cNvPr', nsprefix='pic',
+        attributes={'id': '0', 'name': 'Picture 1', 'descr': picname})
+    nvpicpr.append(cnvpr)
+    cnvpicpr = makeelement('cNvPicPr', nsprefix='pic')
+    cnvpicpr.append(makeelement(
+        'picLocks', nsprefix='a',
+        attributes={'noChangeAspect': str(int(nochangeaspect)),
+                    'noChangeArrowheads': str(int(nochangearrowheads))}))
+    nvpicpr.append(cnvpicpr)
+
+    # 3. The Shape properties
+    sppr = makeelement('spPr', nsprefix='pic', attributes={'bwMode': 'auto'})
+    xfrm = makeelement('xfrm', nsprefix='a')
+    xfrm.append(makeelement(
+        'off', nsprefix='a', attributes={'x': '0', 'y': '0'}))
+    xfrm.append(makeelement(
+        'ext', nsprefix='a', attributes={'cx': width, 'cy': height}))
+    prstgeom = makeelement(
+        'prstGeom', nsprefix='a', attributes={'prst': 'rect'})
+    prstgeom.append(makeelement('avLst', nsprefix='a'))
+    sppr.append(xfrm)
+    sppr.append(prstgeom)
+
+    # Add our 3 parts to the picture element
+    pic = makeelement('pic', nsprefix='pic')
+    pic.append(nvpicpr)
+    pic.append(blipfill)
+    pic.append(sppr)
+
+    # Now make the supporting elements
+    # The following sequence is just: make element, then add its children
+    graphicdata = makeelement(
+        'graphicData', nsprefix='a',
+        attributes={'uri': ('http://schemas.openxmlformats.org/drawingml/2006/picture')})
+    graphicdata.append(pic)
+    graphic = makeelement('graphic', nsprefix='a')
+    graphic.append(graphicdata)
+
+    framelocks = makeelement('graphicFrameLocks', nsprefix='a',
+                             attributes={'noChangeAspect': '1'})
+    framepr = makeelement('cNvGraphicFramePr', nsprefix='wp')
+    framepr.append(framelocks)
+    docpr = makeelement('docPr', nsprefix='wp',
+                        attributes={'id': picid, 'name': 'Picture 1',
+                                    'descr': picdescription})
+    effectextent = makeelement('effectExtent', nsprefix='wp',
+                               attributes={'l': '25400', 't': '0', 'r': '0',
+                                           'b': '0'})
+    extent = makeelement('extent', nsprefix='wp',
+                         attributes={'cx': width, 'cy': height})
+    inline = makeelement('inline', attributes={'distT': "0", 'distB': "0",
+                                               'distL': "0", 'distR': "0"},
+                         nsprefix='wp')
+    inline.append(extent)
+    inline.append(effectextent)
+    inline.append(docpr)
+    inline.append(framepr)
+    inline.append(graphic)
+    drawing = makeelement('drawing')
+    drawing.append(inline)
+    run = makeelement('r')
+    run.append(drawing)
+    paragraph = makeelement('p')
+    paragraph.append(run)
+    return paragraph
 
 
 def search(document, search):
@@ -1005,6 +1140,34 @@ def pagecontentsize(document):
     # print pwidth, pheight
     return pwidth-mleft-mright, pheight-mtop-mbottom
     
+def updateunzipeddocx(document, file):
+	treestring = etree.tostring(document, pretty_print=True)
+	fo = open(file + '/word/document.xml', 'w')
+	fo.write(treestring)
+	fo.close()
+
+def updatedocx(document, pictures, relships, imagepath, infile, outfile):
+	zipin = zipfile.ZipFile(infile)
+	files = {}
+	for item in zipin.infolist():
+		# print item.filename, " -- ", item
+		files[item.filename] = zipin.read(item.filename)
+	zipin.close()
+
+	files['word/document.xml'] = etree.tostring(document, pretty_print=True)
+	files['word/_rels/document.xml.rels'] = etree.tostring(relships, pretty_print=True)
+	
+	zipout = zipfile.ZipFile(outfile, mode='w', compression=zipfile.ZIP_DEFLATED)
+	
+	for filename, data in files.iteritems():
+		zipout.writestr(filename, data)
+
+	if pictures is not None:
+		for p in pictures:
+			zipout.write(join(imagepath, p), "word/media/" + p)
+
+	zipout.close()
+
 
 def savedocx(document, coreprops, appprops, contenttypes, websettings,
              wordrelationships, output):
