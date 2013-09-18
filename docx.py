@@ -80,7 +80,7 @@ def openunzipeddocx(file):
     document = etree.parse(file + '/word/document.xml')
     return document
 
-	
+    
 def newdocument(pgSize = (11901, 16817), pgMargin = (1134, 1134, 1134, 1134)):
     document = makeelement('document')
     body = makeelement('body')
@@ -561,8 +561,7 @@ def picture(
     return relationshiplist, paragraph
 
 def picture2(
-        picrelid, picname, imagepath, picdescription, pixelwidth=None,
-        pixelheight=None, nochangeaspect=True, nochangearrowheads=True, document=None):
+        picrelid, picname, imagepath, picdescription, pixelsize=None, nochangeaspect=True, nochangearrowheads=True, document=None):
     """
     Take a relationshiplist, picture file name, and return a paragraph
     containing the image and an updated relationshiplist.
@@ -577,11 +576,24 @@ def picture2(
     # shutil.copyfile(picname, join(media_dir, picname))
 
     # If not, get info from the picture itself
-    imgwidth, imgheight = Image.open(join(imagepath, picname)).size[0:2]
+    img = Image.open(join(imagepath, picname))
+    # print picname, img.format, img.size
+
+    imgwidth, imgheight = img.size
+    if img.format != "PNG":
+        picname += ".png"
+        img.save(join(imagepath, picname), "PNG")
+
 
     # Check if the user has specified a size
-    if not pixelwidth or not pixelheight:
+    if pixelsize is None or (pixelsize[0] is None and pixelsize[1] is None):
         pixelwidth, pixelheight = imgwidth, imgheight
+    else:
+		pixelwidth, pixelheight = pixelsize
+		if pixelheight is None:
+			pixelheight = imgheight * pixelwidth / imgwidth
+		if pixelwidth is None:
+			pixelwidth = imgwidth * pixelheight / imgheight
     
     # OpenXML measures on-screen objects in English Metric Units
     # 1cm = 36000 EMUs
@@ -687,7 +699,7 @@ def picture2(
     run.append(drawing)
     paragraph = makeelement('p')
     paragraph.append(run)
-    return paragraph
+    return paragraph, picname
 
 
 def search(document, search):
@@ -1141,32 +1153,32 @@ def pagecontentsize(document):
     return pwidth-mleft-mright, pheight-mtop-mbottom
     
 def updateunzipeddocx(document, file):
-	treestring = etree.tostring(document, pretty_print=True)
-	fo = open(file + '/word/document.xml', 'w')
-	fo.write(treestring)
-	fo.close()
+    treestring = etree.tostring(document, pretty_print=True)
+    fo = open(file + '/word/document.xml', 'w')
+    fo.write(treestring)
+    fo.close()
 
 def updatedocx(document, pictures, relships, imagepath, infile, outfile):
-	zipin = zipfile.ZipFile(infile)
-	files = {}
-	for item in zipin.infolist():
-		# print item.filename, " -- ", item
-		files[item.filename] = zipin.read(item.filename)
-	zipin.close()
+    zipin = zipfile.ZipFile(infile)
+    files = {}
+    for item in zipin.infolist():
+        # print item.filename, " -- ", item
+        files[item.filename] = zipin.read(item.filename)
+    zipin.close()
 
-	files['word/document.xml'] = etree.tostring(document, pretty_print=True)
-	files['word/_rels/document.xml.rels'] = etree.tostring(relships, pretty_print=True)
-	
-	zipout = zipfile.ZipFile(outfile, mode='w', compression=zipfile.ZIP_DEFLATED)
-	
-	for filename, data in files.iteritems():
-		zipout.writestr(filename, data)
+    files['word/document.xml'] = etree.tostring(document, pretty_print=True)
+    files['word/_rels/document.xml.rels'] = etree.tostring(relships, pretty_print=True)
+    
+    zipout = zipfile.ZipFile(outfile, mode='w', compression=zipfile.ZIP_DEFLATED)
+    
+    for filename, data in files.iteritems():
+        zipout.writestr(filename, data)
 
-	if pictures is not None:
-		for p in pictures:
-			zipout.write(join(imagepath, p), "word/media/" + p)
+    if pictures is not None:
+        for p in pictures:
+            zipout.write(join(imagepath, p), "word/media/" + p)
 
-	zipout.close()
+    zipout.close()
 
 
 def savedocx(document, coreprops, appprops, contenttypes, websettings,
