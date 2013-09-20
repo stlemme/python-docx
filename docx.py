@@ -589,11 +589,11 @@ def picture2(
     if pixelsize is None or (pixelsize[0] is None and pixelsize[1] is None):
         pixelwidth, pixelheight = imgwidth, imgheight
     else:
-		pixelwidth, pixelheight = pixelsize
-		if pixelheight is None:
-			pixelheight = imgheight * pixelwidth / imgwidth
-		if pixelwidth is None:
-			pixelwidth = imgwidth * pixelheight / imgheight
+        pixelwidth, pixelheight = pixelsize
+        if pixelheight is None:
+            pixelheight = imgheight * pixelwidth / imgwidth
+        if pixelwidth is None:
+            pixelwidth = imgwidth * pixelheight / imgheight
     
     # OpenXML measures on-screen objects in English Metric Units
     # 1cm = 36000 EMUs
@@ -700,6 +700,59 @@ def picture2(
     paragraph = makeelement('p')
     paragraph.append(run)
     return paragraph, picname
+
+def imagecaption(caption, number, style):
+    # Make our elements
+    paragraph = makeelement('p')
+    pr = makeelement('pPr')
+    pStyle = makeelement('pStyle', attributes={'val': style})
+    pr.append(pStyle)
+
+    run1 = makeelement('r')
+    text1 = makeelement('t', tagtext='Figure '+str(number))
+    text1.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+    run1.append(text1)
+
+    run2 = makeelement('r')
+    fldChar1 = makeelement('fldChar', attributes={'fldCharType': 'begin'})
+    run2.append(fldChar1)
+
+    run3 = makeelement('r')
+    instrText = makeelement('instrText', tagtext=' SEQ Figure \* ARABIC ')
+    instrText.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+    run3.append(instrText)
+    
+    run4 = makeelement('r')
+    fldChar2 = makeelement('fldChar', attributes={'fldCharType': 'seperate'})
+    run4.append(fldChar2)
+
+    run5 = makeelement('r')
+    rPr = makeelement('rPr')
+    noProof = makeelement('noProof')
+    rPr.append(noProof)
+    text2 = makeelement('t', tagtext=str(number))
+    run5.append(rPr)
+    run5.append(text2)
+        
+    run6 = makeelement('r')
+    fldChar3 = makeelement('fldChar', attributes={'fldCharType': 'end'})
+    run6.append(fldChar3)
+
+    run7 = makeelement('r')
+    text3 = makeelement('t', tagtext=' '+caption)
+    text3.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+    run7.append(text3)
+
+    paragraph.append(pr)
+    paragraph.append(run1)
+    paragraph.append(run2)
+    paragraph.append(run3)
+    paragraph.append(run4)
+    paragraph.append(run5)
+    paragraph.append(run6)
+    paragraph.append(run7)
+    # Return the combined paragraph
+    return paragraph
 
 
 def search(document, search):
