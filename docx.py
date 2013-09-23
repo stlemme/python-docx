@@ -206,24 +206,28 @@ def paragraph(paratext, style='BodyText', breakbefore=False, jc='left'):
     paragraph.append(pPr)
     for text_elm, char_styles_str in text_tuples:
         run = makeelement('r')
-        rPr = makeelement('rPr')
-        # Apply styles
-        if 'b' in char_styles_str:
-            b = makeelement('b')
-            rPr.append(b)
-        if 'i' in char_styles_str:
-            i = makeelement('i')
-            rPr.append(i)
-        if 'u' in char_styles_str:
-            u = makeelement('u', attributes={'val': 'single'})
-            rPr.append(u)
-        run.append(rPr)
-        # Insert lastRenderedPageBreak for assistive technologies like
-        # document narrators to know when a page break occurred.
-        if breakbefore:
-            lastRenderedPageBreak = makeelement('lastRenderedPageBreak')
-            run.append(lastRenderedPageBreak)
-        run.append(text_elm)
+        if 'n' in char_styles_str:
+            rBr = makeelement('br')
+            run.append(rBr)
+        else:
+            rPr = makeelement('rPr')
+            # Apply styles
+            if 'b' in char_styles_str:
+                b = makeelement('b')
+                rPr.append(b)
+            if 'i' in char_styles_str:
+                i = makeelement('i')
+                rPr.append(i)
+            if 'u' in char_styles_str:
+                u = makeelement('u', attributes={'val': 'single'})
+                rPr.append(u)
+            run.append(rPr)
+            # Insert lastRenderedPageBreak for assistive technologies like
+            # document narrators to know when a page break occurred.
+            if breakbefore:
+                lastRenderedPageBreak = makeelement('lastRenderedPageBreak')
+                run.append(lastRenderedPageBreak)
+            run.append(text_elm)
         paragraph.append(run)
     # Return the combined paragraph
     return paragraph
@@ -295,7 +299,7 @@ def heading(headingtext, headinglevel, lang='en'):
 
 
 def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0,
-          twunit='auto', borders={}, celstyle=None):
+          twunit='auto', borders={}, celstyle=None, jc=None):
     """
     Return a table element based on specified parameters
 
@@ -342,6 +346,11 @@ def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0,
     tablewidth = makeelement(
         'tblW', attributes={'w': str(tblw), 'type': str(twunit)})
     tableprops.append(tablewidth)
+    
+    if jc is not None:
+        tablealign = makeelement('jc', attributes={'val': jc})
+        tableprops.append(tablealign)
+        
     if len(borders.keys()):
         tableborders = makeelement('tblBorders')
         for b in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
@@ -561,7 +570,7 @@ def picture(
     return relationshiplist, paragraph
 
 def picture2(
-        picrelid, picname, imagepath, picdescription, pixelsize=None, nochangeaspect=True, nochangearrowheads=True, document=None):
+        picrelid, picname, imagepath, picdescription, pixelsize=None, nochangeaspect=True, nochangearrowheads=True, document=None, jc=None):
     """
     Take a relationshiplist, picture file name, and return a paragraph
     containing the image and an updated relationshiplist.
@@ -698,6 +707,13 @@ def picture2(
     run = makeelement('r')
     run.append(drawing)
     paragraph = makeelement('p')
+
+    if jc is not None:
+        pPr = makeelement('pPr')
+        pJc = makeelement('jc', attributes={'val': jc})
+        pPr.append(pJc)
+        paragraph.append(pPr)
+
     paragraph.append(run)
     return paragraph, picname
 
