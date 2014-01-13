@@ -21,7 +21,8 @@ import time
 import os
 from os.path import join
 
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
+log = logging
 
 # Record template directory's location which is just 'template' for a docx
 # developer or 'site-packages/docx-template' if you have installed docx
@@ -1240,7 +1241,7 @@ def updatedocx(document, pictures, relships, imagepath, infile, outfile):
     
     zipout = zipfile.ZipFile(outfile, mode='w', compression=zipfile.ZIP_DEFLATED)
     
-    for filename, data in files.iteritems():
+    for filename, data in files.items():
         zipout.writestr(filename, data)
 
     if pictures is not None:
