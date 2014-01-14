@@ -359,7 +359,8 @@ def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0,
                 k = 'all' if 'all' in borders.keys() else b
                 attrs = {}
                 for a in borders[k].keys():
-                    attrs[a] = unicode(borders[k][a])
+                    attrs[a] = str(borders[k][a])
+                    # attrs[a] = unicode(borders[k][a])
                 borderelem = makeelement(b, attributes=attrs)
                 tableborders.append(borderelem)
         tableprops.append(tableborders)
