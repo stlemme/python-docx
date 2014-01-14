@@ -621,8 +621,8 @@ def picture2(
             emuwidth = emumaxwidth
             emuheight = pixelheight * emuwidth / pixelwidth
     
-    width = str(emuwidth)
-    height = str(emuheight)
+    width = str(int(emuwidth))
+    height = str(int(emuheight))
 
     # Set relationship ID to the first available
     picid = '2'
