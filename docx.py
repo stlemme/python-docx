@@ -624,6 +624,9 @@ def picture2(
     
     width = str(int(emuwidth))
     height = str(int(emuheight))
+    
+    if picdescription is None:
+        picdescription = picname
 
     # Set relationship ID to the first available
     picid = '2'
