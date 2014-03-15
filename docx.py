@@ -1082,7 +1082,7 @@ def getdocumenttext(document):
     # iterate through each paragraph, appending all text (t) children to that
     # paragraphs text.
     for para in paralist:
-        paratext = u''
+        paratext = ''
         # Loop through each paragraph
         for element in para.iter():
             # Find t (text) elements
